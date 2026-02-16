@@ -1,0 +1,19 @@
+# Railway Deployment - One Click
+
+name: aocs
+services:
+  - type: web
+    name: aocs
+    env: node
+    buildCommand: npm ci
+    startCommand: node -e "import('./src/index.js').then(m => m.serve(process.env.PORT || 3000))"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENROUTER_API_KEY
+        required: true
+      - key: PORT
+        value: 3000
+    healthcheck:
+      path: /health
+      port: 3000

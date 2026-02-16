@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { agent, tools, config, Agent, listPatterns, loadPattern, listMicros, getMicro, categories, serve, listPresets, init } from '../src/index.js';
+import { agent, tools, config, Agent, listPatterns, loadPattern, listMicros, getMicro, categories, serve, listPresets, init, listPlatforms, deploy } from '../src/index.js';
 import { homedir } from 'os';
 
 const cfgPath = `${homedir()}/.aocs.json`;
@@ -38,6 +38,28 @@ async function main() {
       console.log(`  aocs init ${p.key.padEnd(12)} ${p.name} (${p.agents} agents, saves ${p.saves})`);
     }
     console.log();
+    return;
+  }
+
+  if (cmd === 'deploy' && args[1]) {
+    try {
+      const result = deploy(args[1]);
+      console.log(`\n  Platform: ${result.platform}\n`);
+      console.log(result.instructions);
+      console.log(`  Dashboard: ${result.url}\n`);
+    } catch (e) {
+      console.error(e.message);
+    }
+    return;
+  }
+
+  if (cmd === 'deploy') {
+    console.log('Deploy to cloud (choose one):\n');
+    for (const p of listPlatforms()) {
+      console.log(`  aocs deploy ${p.key.padEnd(10)} ${p.name}`);
+    }
+    console.log('\nEach generates config files for that platform.');
+    console.log('Then follow the platform\'s deploy instructions.\n');
     return;
   }
 
@@ -165,21 +187,32 @@ async function main() {
 
   console.log(`AOCS - Governed AI Agent Swarm
 
-  aocs init                        Pick a business, get a server
-  aocs init <type>                 Generate plug-and-play project
-  aocs serve [port]                Run all 33 agents as endpoints
+COMMANDS:
+  aocs init <type>                 Generate business-specific project
+  aocs deploy <platform>           Generate deploy config (railway, render, docker, fly)
+  aocs serve [port]                Run all 33 agents locally
   aocs <agent> <input>             Run one agent from terminal
   aocs repl [agent]                Interactive mode
-  aocs ls                          List all agents
+  aocs ls                          List all 33 agents
+  aocs patterns                    List multi-tool patterns
 
-Business types:
+BUSINESS TYPES:
   dental hvac restaurant agency realestate law ecommerce saas eldercare solo
 
-Examples:
+EXAMPLES:
   aocs init dental                 → ready-to-run dental office server
-  aocs serve 3000                  → all 33 agents live
+  aocs deploy railway              → generate Railway deploy config
+  aocs serve 3000                  → all agents live with dashboard
   aocs nightwatch "500 errors on /checkout"
-  aocs receptionist "I need to reschedule"`);
+  aocs receptionist "I need to reschedule"
+
+DASHBOARD:
+  After 'aocs serve', open http://localhost:3000
+  - See all activity
+  - Chat with any agent
+  - Get widget code for your website
+  - View stats and logs`);
+
 }
 
 main().catch(console.error);

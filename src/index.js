@@ -9,3 +9,4 @@ export { presets, getPreset, listPresets } from './presets.js';
 export { init } from './init.js';
 export { logActivity, getActivity, getStats } from './activity.js';
 export { dashboardHTML, widgetHTML } from './dashboard.js';
+export { listPlatforms, deploy } from './deploy.js';

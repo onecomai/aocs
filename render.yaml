@@ -1,0 +1,16 @@
+# Render Deployment - One Click
+
+services:
+  - type: web
+    name: aocs
+    runtime: node
+    buildCommand: npm ci
+    startCommand: node -e "import('./src/index.js').then(m => m.serve(process.env.PORT || 3000))"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: PORT
+        value: 10000
+    healthCheckPath: /health
