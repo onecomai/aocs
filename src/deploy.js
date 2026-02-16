@@ -81,6 +81,7 @@ services:
       - NODE_ENV=production
 `
     },
+    url: 'https://docker.com',
     instructions: `
 1. Run: docker build -t aocs .
 2. Run: docker run -p 3000:3000 -e OPENROUTER_API_KEY=your-key aocs
@@ -121,6 +122,7 @@ primary_region = "lhr"
 *.md
 `
     },
+    url: 'https://fly.io',
     instructions: `
 1. Install Fly CLI: curl -L https://fly.io/install.sh | sh
 2. Run: fly auth login
@@ -137,6 +139,11 @@ export function deploy(platform, dir = '.') {
   if (!config) {
     const available = Object.keys(DEPLOYMENTS).join(', ');
     throw new Error(`Unknown platform: ${platform}\nAvailable: ${available}`);
+  }
+
+  // Ensure directory exists
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
   }
 
   // Write config files
