@@ -1,13 +1,13 @@
+import { tool } from '@openrouter/sdk';
+import { z } from 'zod/v4';
+
 export class ToolRegistry {
   constructor() {
     this._tools = new Map();
   }
 
-  register(name, fn, description = '', parameters = {}) {
-    if (typeof fn !== 'function') {
-      throw new Error(`Tool "${name}" must be a function`);
-    }
-    this._tools.set(name, { name, fn, description, parameters });
+  add(sdkTool) {
+    this._tools.set(sdkTool.function.name, sdkTool);
     return this;
   }
 
@@ -16,31 +16,46 @@ export class ToolRegistry {
   }
 
   list() {
-    return Array.from(this._tools.values()).map(t => ({
-      name: t.name,
-      description: t.description,
-      parameters: t.parameters
-    }));
+    return Array.from(this._tools.values());
+  }
+
+  names() {
+    return Array.from(this._tools.keys());
   }
 
   async execute(name, args = {}) {
-    const tool = this._tools.get(name);
-    if (!tool) {
-      throw new Error(`Unknown tool: ${name}`);
-    }
-    try {
-      return await tool.fn(args);
-    } catch (err) {
-      return { error: err.message };
-    }
+    const t = this._tools.get(name);
+    if (!t) throw new Error(`Unknown tool: ${name}`);
+    return t.function.execute(args);
   }
 }
 
 export const tools = new ToolRegistry();
 
-tools.register('echo', (args) => args.text, 'Echo back the input')
-  .register('datetime', () => new Date().toISOString(), 'Get current datetime')
-  .register('calculator', ({ expr }) => {
-    const safe = expr.replace(/[^0-9+\-*/.() ]/g, '');
-    return Function(`"use strict"; return (${safe})`)();
-  }, 'Calculate math expression', { expr: { type: 'string', description: 'Math expression' } });
+// Built-in tools using SDK tool() + Zod v4
+tools
+  .add(tool({
+    name: 'echo',
+    description: 'Echo back the input text',
+    inputSchema: z.object({
+      text: z.string().describe('Text to echo back')
+    }),
+    execute: async ({ text }) => text
+  }))
+  .add(tool({
+    name: 'datetime',
+    description: 'Get current date and time',
+    inputSchema: z.object({}),
+    execute: async () => new Date().toISOString()
+  }))
+  .add(tool({
+    name: 'calculator',
+    description: 'Calculate a math expression',
+    inputSchema: z.object({
+      expr: z.string().describe('Math expression (e.g. 2+2, 10*5)')
+    }),
+    execute: async ({ expr }) => {
+      const safe = expr.replace(/[^0-9+\-*/.() ]/g, '');
+      return String(Function(`"use strict"; return (${safe})`)());
+    }
+  }));

@@ -1,6 +1,6 @@
 {
   "name": "aocs",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Lightweight AI Agent - Lighter, DRYer, Leaner",
   "type": "module",
   "main": "src/index.js",
@@ -12,9 +12,8 @@
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
-    "openrouter-sdk": "^1.0.0",
-    "conf": "^12.0.0",
-    "ora": "^8.0.0"
+    "@openrouter/sdk": "^0.8.0",
+    "zod": "^3.23.0"
   },
   "engines": {
     "node": ">=20.0.0"

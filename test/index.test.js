@@ -2,34 +2,40 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { tools, ToolRegistry, config, Agent } from '../src/index.js';
 
-describe('tools', () => {
-  it('should register and execute echo', async () => {
+describe('ToolRegistry', () => {
+  it('should have built-in tools', () => {
+    const list = tools.list();
+    assert.ok(list.length >= 3);
+  });
+
+  it('should list tool names', () => {
+    const names = tools.names();
+    assert.ok(names.includes('echo'));
+    assert.ok(names.includes('datetime'));
+    assert.ok(names.includes('calculator'));
+  });
+
+  it('should execute echo tool', async () => {
     const result = await tools.execute('echo', { text: 'hello' });
     assert.strictEqual(result, 'hello');
   });
 
-  it('should execute datetime', async () => {
-    const result = await tools.execute('datetime');
+  it('should execute datetime tool', async () => {
+    const result = await tools.execute('datetime', {});
     assert.ok(result.includes('T'));
   });
 
-  it('should calculate', async () => {
+  it('should execute calculator tool', async () => {
     const result = await tools.execute('calculator', { expr: '2+2' });
-    assert.strictEqual(result, 4);
+    assert.strictEqual(result, '4');
   });
 
   it('should throw for unknown tool', async () => {
     await assert.rejects(() => tools.execute('nonexistent', {}), /Unknown tool/);
   });
-
-  it('should list tools', () => {
-    const list = tools.list();
-    assert.ok(list.length >= 3);
-    assert.ok(list.some(t => t.name === 'echo'));
-  });
 });
 
-describe('config', () => {
+describe('Config', () => {
   it('should get and set values', () => {
     config.set('test.value', 42);
     assert.strictEqual(config.get('test.value'), 42);
