@@ -24,11 +24,12 @@ const listFiles = tool({
     pattern: z.string().describe('Glob pattern like src/**/*.js')
   }),
   execute: async ({ pattern }) => {
-    const { execSync } = await import('child_process');
+    const { globSync } = await import('fs');
     try {
-      return execSync(`find . -path "./${pattern}" -type f 2>/dev/null | head -50`, { encoding: 'utf-8' });
+      const files = globSync(pattern, { cwd: process.cwd() });
+      return files.slice(0, 50).join('\n') || 'No files found';
     } catch {
-      return 'No files found';
+      return 'Error reading files';
     }
   }
 });
@@ -55,15 +56,16 @@ const runCommand = tool({
     command: z.string().describe('Shell command to run')
   }),
   execute: async ({ command }) => {
-    const { execSync } = await import('child_process');
+    const { execFileSync } = await import('child_process');
     const allowed = ['npm test', 'npm run lint', 'npx tsc', 'npm run build', 'npx eslint'];
     if (!allowed.some(a => command.startsWith(a))) {
       return 'Error: Only lint/test/build commands allowed';
     }
     try {
-      return execSync(command, { encoding: 'utf-8', timeout: 30000 }).slice(0, 5000);
+      const [cmd, ...args] = command.split(' ');
+      return execFileSync(cmd, args, { encoding: 'utf-8', timeout: 30000 }).slice(0, 5000);
     } catch (e) {
-      return `Exit ${e.status}: ${e.stderr?.slice(0, 3000) || e.message}`;
+      return `Exit ${e.status || 1}: ${e.stderr?.slice(0, 3000) || e.message}`;
     }
   }
 });

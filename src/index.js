@@ -10,3 +10,5 @@ export { init } from './init.js';
 export { logActivity, getActivity, getStats } from './activity.js';
 export { dashboardHTML, widgetHTML } from './dashboard.js';
 export { listPlatforms, deploy } from './deploy.js';
+export { gateway, createGateway, enqueue, getQueue, getQueueItem, processNext } from './gateway.js';
+export { db } from './db.js';

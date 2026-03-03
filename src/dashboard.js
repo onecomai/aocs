@@ -1,4 +1,4 @@
-export function dashboardHTML(businessName, agents) {
+export function dashboardHTML(businessName, agents, token = '') {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -69,6 +69,7 @@ body { font-family: -apple-system, system-ui, sans-serif; background: #f5f5f5; c
 </div>
 
 <script>
+const TOKEN = "${token}";
 const msgBox = document.getElementById('messages');
 const input = document.getElementById('input');
 const picker = document.getElementById('agentPicker');
@@ -93,7 +94,7 @@ async function send() {
   try {
     const r = await fetch('/agent/' + agent, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
       body: JSON.stringify({ input: text })
     });
     const d = await r.json();
@@ -110,7 +111,7 @@ input.onkeydown = (e) => { if (e.key === 'Enter') send(); };
 
 async function loadStats() {
   try {
-    const r = await fetch('/stats');
+    const r = await fetch('/stats', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
     const s = await r.json();
     document.getElementById('stats').innerHTML =
       '<div class="stat"><div class="num">' + s.today + '</div><div class="label">Today</div></div>' +
@@ -121,7 +122,7 @@ async function loadStats() {
 
 async function loadLog() {
   try {
-    const r = await fetch('/activity');
+    const r = await fetch('/activity', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
     const items = await r.json();
     const el = document.getElementById('log');
     if (!items.length) { el.innerHTML = '<div class="empty">No activity yet</div>'; return; }
@@ -143,7 +144,7 @@ input.focus();
 </html>`;
 }
 
-export function widgetHTML(agentName) {
+export function widgetHTML(agentName, token = '') {
   return `<!-- AOCS Chat Widget - paste before </body> -->
 <div id="aocs-widget" style="position:fixed;bottom:20px;right:20px;z-index:9999;font-family:-apple-system,system-ui,sans-serif">
 <div id="aocs-chat" style="display:none;width:340px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.15);overflow:hidden">
@@ -159,7 +160,7 @@ export function widgetHTML(agentName) {
 function aocsSend(){var i=document.getElementById('aocs-in'),m=document.getElementById('aocs-msgs'),t=i.value.trim();if(!t)return;i.value='';
 m.innerHTML+='<div style="text-align:right;margin:6px 0"><span style="background:#111;color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;display:inline-block;max-width:80%">'+t.replace(/</g,'&lt;')+'</span></div>';
 m.scrollTop=m.scrollHeight;
-fetch('/agent/${agentName || 'receptionist'}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:t})}).then(r=>r.json()).then(d=>{
+fetch('/agent/${agentName || 'receptionist'}',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer ${token}'},body:JSON.stringify({input:t})}).then(r=>r.json()).then(d=>{
 m.innerHTML+='<div style="margin:6px 0"><span style="background:#f0f0f0;padding:6px 12px;border-radius:10px;font-size:13px;display:inline-block;max-width:80%">'+(d.output||d.error).replace(/</g,'&lt;')+'</span></div>';
 m.scrollTop=m.scrollHeight;}).catch(e=>{m.innerHTML+='<div style="margin:6px 0;color:red;font-size:12px">Error connecting</div>';});}
 document.getElementById('aocs-in').onkeydown=function(e){if(e.key==='Enter')aocsSend();}

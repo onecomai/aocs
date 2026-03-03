@@ -9,13 +9,13 @@
   },
   "scripts": {
     "start": "node bin/aocs.js",
-    "test": "node --test test/*.test.js"
+    "test": "NODE_ENV=test node --test test/*.test.js"
   },
   "dependencies": {
     "@openrouter/sdk": "^0.8.0",
     "zod": "^3.23.0"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.5.0"
   }
 }

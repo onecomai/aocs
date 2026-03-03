@@ -55,7 +55,12 @@ tools
       expr: z.string().describe('Math expression (e.g. 2+2, 10*5)')
     }),
     execute: async ({ expr }) => {
-      const safe = expr.replace(/[^0-9+\-*/.() ]/g, '');
-      return String(Function(`"use strict"; return (${safe})`)());
+      if (!/^[-+/*().0-9 ]+$/.test(expr)) return "Error: Invalid characters in expression";
+      try {
+        const { runInNewContext } = await import('vm');
+        return String(runInNewContext(expr, Object.create(null)));
+      } catch (e) {
+        return "Error evaluating expression";
+      }
     }
   }));
