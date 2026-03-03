@@ -69,7 +69,7 @@ body { font-family: -apple-system, system-ui, sans-serif; background: #f5f5f5; c
 </div>
 
 <script>
-const TOKEN = "${token}";
+const TOKEN = ${JSON.stringify(token)};
 const msgBox = document.getElementById('messages');
 const input = document.getElementById('input');
 const picker = document.getElementById('agentPicker');
@@ -160,7 +160,7 @@ export function widgetHTML(agentName, token = '') {
 function aocsSend(){var i=document.getElementById('aocs-in'),m=document.getElementById('aocs-msgs'),t=i.value.trim();if(!t)return;i.value='';
 m.innerHTML+='<div style="text-align:right;margin:6px 0"><span style="background:#111;color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;display:inline-block;max-width:80%">'+t.replace(/</g,'&lt;')+'</span></div>';
 m.scrollTop=m.scrollHeight;
-fetch('/agent/${agentName || 'receptionist'}',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer ${token}'},body:JSON.stringify({input:t})}).then(r=>r.json()).then(d=>{
+fetch('/agent/${agentName || 'receptionist'}',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+${JSON.stringify(token)}},body:JSON.stringify({input:t})}).then(r=>r.json()).then(d=>{
 m.innerHTML+='<div style="margin:6px 0"><span style="background:#f0f0f0;padding:6px 12px;border-radius:10px;font-size:13px;display:inline-block;max-width:80%">'+(d.output||d.error).replace(/</g,'&lt;')+'</span></div>';
 m.scrollTop=m.scrollHeight;}).catch(e=>{m.innerHTML+='<div style="margin:6px 0;color:red;font-size:12px">Error connecting</div>';});}
 document.getElementById('aocs-in').onkeydown=function(e){if(e.key==='Enter')aocsSend();}

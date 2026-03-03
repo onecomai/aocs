@@ -15,6 +15,8 @@ function h() {
 before(async () => {
   config.set('llm.apiKey', 'test-key');
   config.set('server.token', TOKEN);
+  config.set('dashboard.token', 'gw-test-dash-token');
+  config.set('widget.token', 'gw-test-widget-tok');
   port = 4200 + Math.floor(Math.random() * 800);
   server = await serve(port);
 });

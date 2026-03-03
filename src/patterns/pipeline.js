@@ -13,7 +13,8 @@ const readData = tool({
     const pathModule = await import('path');
     try {
       const safePath = pathModule.resolve(process.cwd(), path);
-      if (!safePath.startsWith(process.cwd())) throw new Error('Access denied: Path outside working directory');
+      const rel = pathModule.relative(process.cwd(), safePath);
+      if (rel.startsWith('..') || pathModule.isAbsolute(rel)) throw new Error('Access denied: Path outside working directory');
       const content = readFileSync(safePath, 'utf-8');
       if (format === 'csv') {
         const lines = content.split('\n').filter(Boolean);
@@ -78,7 +79,8 @@ const writeOutput = tool({
     const pathModule = await import('path');
     try {
       const safePath = pathModule.resolve(process.cwd(), path);
-      if (!safePath.startsWith(process.cwd())) throw new Error('Access denied: Path outside working directory');
+      const rel = pathModule.relative(process.cwd(), safePath);
+      if (rel.startsWith('..') || pathModule.isAbsolute(rel)) throw new Error('Access denied: Path outside working directory');
       writeFileSync(safePath, content, 'utf-8');
       return JSON.stringify({ written: safePath, bytes: content.length });
     } catch (e) {

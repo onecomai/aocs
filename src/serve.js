@@ -42,7 +42,21 @@ export async function serve(port = 3000) {
   if (!token) {
     token = randomBytes(16).toString('hex');
     config.set('server.token', token);
-    console.log(`\n[SECURITY] Auto-generated API token: ${token}`);
+    console.log(`\n[SECURITY] Server token:    ${token}`);
+  }
+
+  let dashboardToken = config.get('dashboard.token');
+  if (!dashboardToken) {
+    dashboardToken = randomBytes(12).toString('hex');
+    config.set('dashboard.token', dashboardToken);
+    console.log(`[SECURITY] Dashboard token: ${dashboardToken}`);
+  }
+
+  let widgetToken = config.get('widget.token');
+  if (!widgetToken) {
+    widgetToken = randomBytes(8).toString('hex');
+    config.set('widget.token', widgetToken);
+    console.log(`[SECURITY] Widget token:    ${widgetToken}`);
   }
 
   const server = createServer(async (req, res) => {
@@ -55,19 +69,40 @@ export async function serve(port = 3000) {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-    // Auth check — all routes except /health and /webhook require a token
+    // Auth check — 3-tier token scoping
+    // server token:    full access to all routes
+    // dashboard token: /agent/, /agent/:name/stream, /stats, /activity, /api
+    // widget token:    /agent/, /agent/:name/stream only
     const publicPaths = ['/health', '/webhook/'];
     const isPublic = publicPaths.some(p => path.startsWith(p));
-    if (token && !isPublic) {
+    if (!isPublic) {
       const auth = req.headers.authorization?.replace('Bearer ', '');
-      const queryToken = url.searchParams.get('token');
-      if (auth !== token && queryToken !== token) { json(res, 401, { error: 'Unauthorized' }); return; }
+      const queryTok = url.searchParams.get('token');
+      const presented = auth || queryTok;
+
+      const DASHBOARD_ROUTES = ['/agent/', '/stats', '/activity', '/api'];
+      const WIDGET_ROUTES = ['/agent/'];
+
+      let authorized = false;
+      if (presented === token) {
+        authorized = true;
+      } else if (presented === dashboardToken) {
+        authorized = DASHBOARD_ROUTES.some(r => path.startsWith(r));
+      } else if (presented === widgetToken) {
+        authorized = WIDGET_ROUTES.some(r => path.startsWith(r));
+      }
+
+      if (!authorized) {
+        const status = presented ? 403 : 401;
+        json(res, status, { error: presented ? 'Forbidden' : 'Unauthorized' });
+        return;
+      }
     }
 
     // --- Dashboard ---
     if (req.method === 'GET' && path === '/') {
       res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(dashboardHTML(businessName, agentNames, token));
+      res.end(dashboardHTML(businessName, agentNames, dashboardToken));
       return;
     }
 
@@ -75,7 +110,7 @@ export async function serve(port = 3000) {
     if (req.method === 'GET' && path === '/widget') {
       const agent = url.searchParams.get('agent') || 'receptionist';
       res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(`<html><head><title>Widget Code</title><style>body{font-family:monospace;padding:20px;background:#f5f5f5}pre{background:#fff;padding:20px;border-radius:8px;overflow-x:auto;font-size:13px}h2{margin-bottom:10px}</style></head><body><h2>Paste this before &lt;/body&gt; on your website:</h2><pre>${widgetHTML(agent, token).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></body></html>`);
+      res.end(`<html><head><title>Widget Code</title><style>body{font-family:monospace;padding:20px;background:#f5f5f5}pre{background:#fff;padding:20px;border-radius:8px;overflow-x:auto;font-size:13px}h2{margin-bottom:10px}</style></head><body><h2>Paste this before &lt;/body&gt; on your website:</h2><pre>${widgetHTML(agent, widgetToken).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></body></html>`);
       return;
     }
 

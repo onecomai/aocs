@@ -44,12 +44,6 @@ export function getQueueItem(id) {
   return db.prepare('SELECT * FROM gateway_queue WHERE id = ?').get(id);
 }
 
-function markRunning(id) {
-  db.prepare(
-    "UPDATE gateway_queue SET status = 'running', started_at = ? WHERE id = ?"
-  ).run(new Date().toISOString(), id);
-}
-
 function markDone(id, result) {
   db.prepare(
     "UPDATE gateway_queue SET status = 'done', result = ?, finished_at = ? WHERE id = ?"
@@ -62,28 +56,29 @@ function markFailed(id, error) {
   ).run(error, new Date().toISOString(), id);
 }
 
-// --- Process one pending item from the queue ---
+// --- Process one pending item from the queue (atomic claim) ---
 export async function processNext() {
-  const item = db.prepare(
-    "SELECT * FROM gateway_queue WHERE status = 'pending' ORDER BY priority ASC, id ASC LIMIT 1"
-  ).get();
-  if (!item) return null;
+  const claimed = db.prepare(
+    `UPDATE gateway_queue SET status = 'running', started_at = ?
+     WHERE id = (SELECT id FROM gateway_queue WHERE status = 'pending'
+     ORDER BY priority ASC, id ASC LIMIT 1) RETURNING *`
+  ).get(new Date().toISOString());
+  if (!claimed) return null;
 
-  markRunning(item.id);
-  const agent = micros[item.agent];
+  const agent = micros[claimed.agent];
   if (!agent) {
-    markFailed(item.id, `Unknown agent: ${item.agent}`);
-    return item;
+    markFailed(claimed.id, `Unknown agent: ${claimed.agent}`);
+    return claimed;
   }
 
   try {
-    const result = await agent.run(item.input);
-    markDone(item.id, result);
-    logActivity(item.agent, item.input, result);
-    return { ...item, status: 'done', result };
+    const result = await agent.run(claimed.input);
+    markDone(claimed.id, result);
+    logActivity(claimed.agent, claimed.input, result);
+    return { ...claimed, status: 'done', result };
   } catch (e) {
-    markFailed(item.id, e.message);
-    return { ...item, status: 'failed', error: e.message };
+    markFailed(claimed.id, e.message);
+    return { ...claimed, status: 'failed', error: e.message };
   }
 }
 

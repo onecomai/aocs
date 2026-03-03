@@ -5,12 +5,16 @@ import { config } from '../src/config.js';
 
 let server;
 let port;
-const TOKEN = 'serve-test-token-xyz';
+const SERVER_TOKEN = 'serve-test-server-token';
+const DASH_TOKEN = 'serve-test-dash-token';
+const WIDGET_TOKEN = 'serve-test-widget-tok';
 
 before(async () => {
   config.set('llm.apiKey', 'test-key');
   config.set('business.name', 'Test Business');
-  config.set('server.token', TOKEN);
+  config.set('server.token', SERVER_TOKEN);
+  config.set('dashboard.token', DASH_TOKEN);
+  config.set('widget.token', WIDGET_TOKEN);
   port = 3456 + Math.floor(Math.random() * 1000);
   server = await serve(port);
 });
@@ -19,13 +23,21 @@ after(() => {
   server?.close();
 });
 
-function authHeaders() {
-  return { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
+function serverHeaders() {
+  return { 'Authorization': `Bearer ${SERVER_TOKEN}`, 'Content-Type': 'application/json' };
+}
+
+function dashHeaders() {
+  return { 'Authorization': `Bearer ${DASH_TOKEN}`, 'Content-Type': 'application/json' };
+}
+
+function widgetHeaders() {
+  return { 'Authorization': `Bearer ${WIDGET_TOKEN}`, 'Content-Type': 'application/json' };
 }
 
 describe('HTTP Server', () => {
-  it('should serve dashboard HTML at root', async () => {
-    const res = await fetch(`http://localhost:${port}/?token=${TOKEN}`);
+  it('should serve dashboard HTML at root with server token', async () => {
+    const res = await fetch(`http://localhost:${port}/?token=${SERVER_TOKEN}`);
     assert.strictEqual(res.status, 200);
     const html = await res.text();
     assert.ok(html.includes('Test Business'));
@@ -33,18 +45,21 @@ describe('HTTP Server', () => {
     assert.ok(html.includes('stats'));
   });
 
-  it('should embed token into dashboard JS', async () => {
-    const res = await fetch(`http://localhost:${port}/?token=${TOKEN}`);
+  it('should embed dashboard token (not server token) into dashboard JS', async () => {
+    const res = await fetch(`http://localhost:${port}/?token=${SERVER_TOKEN}`);
     const html = await res.text();
-    assert.ok(html.includes(TOKEN));
+    assert.ok(html.includes(DASH_TOKEN), 'dashboard token should be in HTML');
+    assert.ok(!html.includes(SERVER_TOKEN), 'server token must NOT be in HTML');
   });
 
-  it('should serve widget code', async () => {
-    const res = await fetch(`http://localhost:${port}/widget?agent=scheduler&token=${TOKEN}`);
+  it('should serve widget code with widget token (not server token)', async () => {
+    const res = await fetch(`http://localhost:${port}/widget?agent=scheduler&token=${SERVER_TOKEN}`);
     assert.strictEqual(res.status, 200);
     const html = await res.text();
     assert.ok(html.includes('aocs-widget'));
     assert.ok(html.includes('scheduler'));
+    assert.ok(html.includes(WIDGET_TOKEN), 'widget token should be in HTML');
+    assert.ok(!html.includes(SERVER_TOKEN), 'server token must NOT be in widget HTML');
   });
 
   it('should return health status without auth', async () => {
@@ -55,45 +70,79 @@ describe('HTTP Server', () => {
     assert.ok(data.agents > 0);
   });
 
-  it('should return API catalog with auth', async () => {
-    const res = await fetch(`http://localhost:${port}/api`, { headers: authHeaders() });
+  it('should return API catalog with server token', async () => {
+    const res = await fetch(`http://localhost:${port}/api`, { headers: serverHeaders() });
     assert.strictEqual(res.status, 200);
     const data = await res.json();
     assert.ok(data.agents);
     assert.ok(data.total > 0);
   });
 
-  it('should reject API catalog without auth', async () => {
+  it('should return API catalog with dashboard token', async () => {
+    const res = await fetch(`http://localhost:${port}/api`, { headers: dashHeaders() });
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.ok(data.agents);
+  });
+
+  it('should reject API catalog with widget token (403 Forbidden)', async () => {
+    const res = await fetch(`http://localhost:${port}/api`, { headers: widgetHeaders() });
+    assert.strictEqual(res.status, 403);
+    const data = await res.json();
+    assert.ok(data.error.includes('Forbidden'));
+  });
+
+  it('should reject API catalog without auth (401)', async () => {
     const res = await fetch(`http://localhost:${port}/api`);
     assert.strictEqual(res.status, 401);
     const data = await res.json();
     assert.ok(data.error.includes('Unauthorized'));
   });
 
-  it('should return activity log with auth', async () => {
-    const res = await fetch(`http://localhost:${port}/activity`, { headers: authHeaders() });
+  it('should return activity log with dashboard token', async () => {
+    const res = await fetch(`http://localhost:${port}/activity`, { headers: dashHeaders() });
     assert.strictEqual(res.status, 200);
     const data = await res.json();
     assert.ok(Array.isArray(data));
   });
 
-  it('should reject activity log without auth', async () => {
+  it('should reject activity log with widget token (403)', async () => {
+    const res = await fetch(`http://localhost:${port}/activity`, { headers: widgetHeaders() });
+    assert.strictEqual(res.status, 403);
+  });
+
+  it('should reject activity log without auth (401)', async () => {
     const res = await fetch(`http://localhost:${port}/activity`);
     assert.strictEqual(res.status, 401);
   });
 
-  it('should return stats with auth', async () => {
-    const res = await fetch(`http://localhost:${port}/stats`, { headers: authHeaders() });
+  it('should return stats with dashboard token', async () => {
+    const res = await fetch(`http://localhost:${port}/stats`, { headers: dashHeaders() });
     assert.strictEqual(res.status, 200);
     const data = await res.json();
     assert.ok(typeof data.total === 'number');
     assert.ok(typeof data.today === 'number');
   });
 
+  it('should reject stats with widget token (403)', async () => {
+    const res = await fetch(`http://localhost:${port}/stats`, { headers: widgetHeaders() });
+    assert.strictEqual(res.status, 403);
+  });
+
+  it('should accept POST /agent/:name with widget token', async () => {
+    // widget token is valid for agent routes — 404 because agent doesn't exist, not 401/403
+    const res = await fetch(`http://localhost:${port}/agent/nonexistent`, {
+      method: 'POST',
+      headers: widgetHeaders(),
+      body: JSON.stringify({ input: 'test' })
+    });
+    assert.strictEqual(res.status, 404);
+  });
+
   it('should 404 for unknown agent', async () => {
     const res = await fetch(`http://localhost:${port}/agent/nonexistent`, {
       method: 'POST',
-      headers: authHeaders(),
+      headers: serverHeaders(),
       body: JSON.stringify({ input: 'test' })
     });
     assert.strictEqual(res.status, 404);
@@ -104,7 +153,7 @@ describe('HTTP Server', () => {
   it('should 400 for missing input', async () => {
     const res = await fetch(`http://localhost:${port}/agent/receptionist`, {
       method: 'POST',
-      headers: authHeaders(),
+      headers: serverHeaders(),
       body: JSON.stringify({})
     });
     assert.strictEqual(res.status, 400);
@@ -121,7 +170,7 @@ describe('HTTP Server', () => {
   });
 
   it('should 404 for unknown path', async () => {
-    const res = await fetch(`http://localhost:${port}/unknown-path?token=${TOKEN}`);
+    const res = await fetch(`http://localhost:${port}/unknown-path?token=${SERVER_TOKEN}`);
     assert.strictEqual(res.status, 404);
   });
 });

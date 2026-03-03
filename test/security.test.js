@@ -1,6 +1,27 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { resolve } from 'path';
+import { resolve, join, dirname } from 'path';
+
+// ── SECURITY: Token JS injection prevention ──────────────────────────────────
+describe('Token injection prevention in dashboard HTML', () => {
+  it('should escape token containing double-quotes in dashboardHTML', async () => {
+    const { dashboardHTML } = await import('../src/dashboard.js');
+    const maliciousToken = 'abc"; alert(1); var x="';
+    const html = dashboardHTML('Test', ['receptionist'], maliciousToken);
+    // The raw quote should not appear unescaped in a JS string context
+    assert.ok(!html.includes(`TOKEN = "${maliciousToken}"`));
+    // The token value should still appear (JSON-encoded)
+    assert.ok(html.includes(JSON.stringify(maliciousToken)));
+  });
+
+  it('should escape token containing double-quotes in widgetHTML', async () => {
+    const { widgetHTML } = await import('../src/dashboard.js');
+    const maliciousToken = 'tok"; alert(1);//';
+    const html = widgetHTML('receptionist', maliciousToken);
+    assert.ok(!html.includes(`Bearer ${maliciousToken}'`));
+    assert.ok(html.includes(JSON.stringify(maliciousToken)));
+  });
+});
 
 // ── SECURITY: Calculator (no eval / Function constructor) ────────────────────
 describe('Calculator security', () => {
@@ -59,6 +80,15 @@ describe('Pipeline file path jailing', () => {
     // Reading package.json (exists) should not be blocked by path jail
     const result = await readTool.function.execute({ path: 'package.json', format: 'text' });
     assert.ok(!result.includes('Access denied'));
+  });
+
+  it('should reject prefix-sibling path (startsWith bypass)', async () => {
+    const { pipeline } = await import('../src/patterns/pipeline.js');
+    const readTool = pipeline.tools.find(t => t.function.name === 'read_data');
+    // e.g. cwd is /home/ccdev/aocs — this tries /home/ccdev/aocs-evil/secret
+    const siblingEvil = join(dirname(process.cwd()), `${process.cwd().split('/').at(-1)}-evil`, 'secret.txt');
+    const result = await readTool.function.execute({ path: siblingEvil, format: 'text' });
+    assert.ok(result.includes('Access denied') || result.includes('Error'));
   });
 });
 
