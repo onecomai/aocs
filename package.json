@@ -1,0 +1,21 @@
+{
+  "name": "aocs",
+  "version": "2.0.0",
+  "description": "Lightweight AI Agent - Lighter, DRYer, Leaner",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "aocs": "./bin/aocs.js"
+  },
+  "scripts": {
+    "start": "node bin/aocs.js",
+    "test": "NODE_ENV=test node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@openrouter/sdk": "^0.8.0",
+    "zod": "^3.23.0"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}
